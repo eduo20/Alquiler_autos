@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
+using System.Web.Script.Serialization;
 
 namespace Alquiler_autos
 {
@@ -17,6 +18,8 @@ namespace Alquiler_autos
         List<Clientes> clientes2 = new List<Clientes>();
         List<Alquiler> alquileres2 = new List<Alquiler>();
         List<Reporte> reportes2 = new List<Reporte>();
+        List<Reporte> listaParaJson = new List<Reporte>();
+
         public Form1()
         {
             InitializeComponent();
@@ -125,6 +128,7 @@ namespace Alquiler_autos
             vehiculo.Precio_kilometro = Convert.ToDecimal(numericUpDownPrecio_porKm.Value);
             vehiculos2.Add(vehiculo);
             GuardarVehiculo();
+            CargarCombosJson(); // Actualizar combos de la pestaña JSON
         }
 
 
@@ -136,12 +140,25 @@ namespace Alquiler_autos
             LeerVehiculo();
             LeerAlquiler();
             mostrarReporte();
+            
             comboBoxCliente.DisplayMember = "Nit";
             comboBoxCliente.DataSource = clientes2;
 
             comboBoxPlaca2.DisplayMember = "Placa";
             comboBoxPlaca2.DataSource = vehiculos2;
 
+            CargarCombosJson();
+        }
+
+        private void CargarCombosJson()
+        {
+            comboBoxClientesJson.DataSource = null;
+            comboBoxClientesJson.DisplayMember = "Nombre";
+            comboBoxClientesJson.DataSource = clientes2;
+
+            comboBoxModelosJson.DataSource = null;
+            comboBoxModelosJson.DisplayMember = "Modelo";
+            comboBoxModelosJson.DataSource = vehiculos2;
         }
 
         private void buttonMostrar1_Click(object sender, EventArgs e)
@@ -205,12 +222,66 @@ namespace Alquiler_autos
                     }
                 }
             }mostrarReporte();
-            decimal maxKm = alquileres2.Max(a => a.Kilometros_recorridos);
+            decimal maxKm = alquileres2.Count > 0 ? alquileres2.Max(a => a.Kilometros_recorridos) : 0;
 
             
             labelMaxKm.Text = "Mayor recorrido: " + maxKm.ToString() + " km";
 
         }
+
+        private void buttonAgregarJson_Click(object sender, EventArgs e)
+        {
+            if (comboBoxClientesJson.SelectedItem != null && comboBoxModelosJson.SelectedItem != null)
+            {
+                Clientes clienteSeleccionado = (Clientes)comboBoxClientesJson.SelectedItem;
+                Vehiculos vehiculoSeleccionado = (Vehiculos)comboBoxModelosJson.SelectedItem;
+
+                Reporte nuevoReporte = new Reporte();
+                nuevoReporte.Nombre = clienteSeleccionado.Nombre;
+                nuevoReporte.Mod = vehiculoSeleccionado.Modelo;
+                nuevoReporte.Marc = vehiculoSeleccionado.Marca;
+                nuevoReporte.Plac = vehiculoSeleccionado.Placa;
+                nuevoReporte.Precio_km = vehiculoSeleccionado.Precio_kilometro;
+                nuevoReporte.Fecha_devolucion = DateTime.Now;
+                nuevoReporte.Kilometros = 0;
+                nuevoReporte.Total = 0;
+
+                listaParaJson.Add(nuevoReporte);
+                ActualizarGridJson();
+            }
+        }
+
+        private void ActualizarGridJson()
+        {
+            dataGridViewJson.DataSource = null;
+            dataGridViewJson.DataSource = listaParaJson;
+            dataGridViewJson.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        }
+
+        private void buttonGuardarJson_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (listaParaJson.Count == 0)
+                {
+                    MessageBox.Show("No hay datos en la tabla para exportar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                string json = serializer.Serialize(listaParaJson);
+                
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "alquileres_exportados.json");
+                File.WriteAllText(path, json);
+                
+                MessageBox.Show("Datos exportados exitosamente en: " + path, "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al exportar JSON: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void mostrarReporte()
         {
             dataGridViewReporte.DataSource = null;
@@ -219,9 +290,3 @@ namespace Alquiler_autos
         }
     }
 }
-
-
-
-
-
-                
